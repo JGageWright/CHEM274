@@ -12,7 +12,7 @@ from cycler import cycler
 
 '''EIS functions'''
 def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: int=100000,
-             extra_samps: int=6000, ai1_delay: float=8.5e-6) -> pd.DataFrame:
+             extra_samps: int=6000, ai1_delay: float=8.5e-6) -> tuple:
     '''
     :rtype: tuple
     :param E_DC: Constant potential to hold during perturbation in V
@@ -22,7 +22,7 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     :param samp_rate: Sampling rate in Hz
     :param extra_samps: Samples to acquire before and after data used to determine Y and Z
     :param ai1_delay: Empirical delay between ai0 and ai1 acquisitions in s
-    :return: DataFrame holding values of Ecell, iw, time, Y, Z for each frequency
+    :return: Tuple of DataFrames holding values of data (Ecell, iw, time, f, Y, Z) and parameters.
 
     Creates and writes the program potential array into the ao0 output of the DAQ
     and then initiates its output to Ein of the pstat.
@@ -35,6 +35,10 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     '''
     # Create an empty dataframe to store data
     df = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Z'])
+
+    params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'freq_array', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
+                           'value': [E_DC, E_AC, freq, Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
+
     for loop_frequency in freq:
         '''
         For each frequency in the array freq, take determine Ecell, Y, Z and append to df
@@ -98,7 +102,7 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
         Z = Y**-1
 
         df.loc[len(df)] = Ecell, iw, time, loop_frequency, Y, Z
-    return df
+    return df, params
 
 def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=100000,
              extra_samps: int=6000, ai1_delay: float=8.5e-6) -> tuple:
@@ -334,6 +338,7 @@ def set_potential_profile(f_start_pot : float, f_end_pot : float, samp_rate : in
     :return: Tuple of (Potential profile array, Total number of samples)
 
     Returns the potential profile for linear sweeps from f_start_pot to f_end_pot and back.
+    Initializes the profile on the DAQ, which sets it to begin holding at f_start_pot.
     Graphs the potential profile for user validation.
     '''
 
@@ -383,6 +388,21 @@ def set_potential_profile(f_start_pot : float, f_end_pot : float, samp_rate : in
     plt.ylabel('$E_{\mathrm{in}}$ / V', fontsize = 16)
     plt.tick_params(axis='both',which='both',direction='in',right=True, top=True)
     plt.plot(np.arange(0, len(pot_profile), 1)/samp_rate, pot_profile)
+
+    '''Send the profile to the DAQ'''
+    # get a list of all devices connected
+    all_devices = list(nidaqmx.system.System.local().devices)
+    # get name of first device
+    dev_name = all_devices[0].name
+    # print(dev_name)
+
+    ''' add DAQ channels and define measurement parameters'''
+    with nidaqmx.Task() as task_i, nidaqmx.Task() as task_o:
+        # add ai0 & ai1 input channels for reading potentials. add ao0 output channels for setting potential
+        task_i.ai_channels.add_ai_voltage_chan(dev_name + "/ai0:1")
+        task_o.ao_channels.add_ao_voltage_chan(dev_name + "/ao0", min_val=-10.0, max_val=10.0)
+        task_o.write(f_start_pot)
+        task_o.start()
 
     return pot_profile, samp_num_tot
 
@@ -536,22 +556,6 @@ def take_CV(pot_profile, samp_num_tot, samp_rate : int=3600):
 
 
 
-
-'''Set Ein on pstat/gstat'''
-# Get device name
-# get a list of all devices connected
-all_devices = list(nidaqmx.system.System.local().devices)
-# get name of first device
-dev_name = all_devices[0].name
-# print(dev_name)
-
-''' add DAQ channels and define measurement parameters'''
-with nidaqmx.Task() as task_i, nidaqmx.Task() as task_o:
-    # add ai0 & ai1 input channels for reading potentials. add ao0 output channels for setting potential
-    task_i.ai_channels.add_ai_voltage_chan(dev_name + "/ai0:1")
-    task_o.ao_channels.add_ao_voltage_chan(dev_name + "/ao0", min_val=-10.0, max_val=10.0)
-    task_o.write(f_start_pot)
-    task_o.start()
 
 
 
