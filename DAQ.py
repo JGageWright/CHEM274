@@ -406,7 +406,7 @@ def set_potential_profile(f_start_pot : float, f_end_pot : float, samp_rate : in
 
     return pot_profile, samp_num_tot
 
-def calc_closest_factor(num, fac):
+def calc_closest_factor(num, fac) -> int:
     '''
     :param num: number you want to find factors for
     :param fac: upper bound for factors searched
