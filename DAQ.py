@@ -164,7 +164,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     freq = samp_rate / 16 # Always > 4 samples per period
     while freq >= low_freq:
         '''
-        For each frequency, take determine Ecell, Y, Z and append to data
+        For each frequency, take determine Ecell, Y, Z and append to data with t and f
         '''
         # Set up potential program
         num_samps = int(20 * samp_rate / freq)  # 20 periods at frequency of interest
@@ -418,18 +418,22 @@ def calc_closest_factor(num, fac):
         fac -= 1
     return int(fac)
 
-
-
-def take_CV(pot_profile, samp_num_tot, samp_rate : int=3600):
+def take_CV(pot_profile : np.ndarray, samp_num_tot : int, buffer_size : int=3600, samp_rate : int=3600) -> tuple:
     '''
-    This function writes a program potential used for linear sweep voltammetry into the ao0 output of the
+    :param pot_profile: Array of potentials returned by set_potential_profile
+    :param samp_num_tot: Total number of samples returned by set_potential_profile
+    :param buffer_size: Samples stored in buffer before callback
+    :param samp_rate: Sampling rate in samples/s; Use an integral multiple of 120/s and at least 3600 per volt
+    :return: Tuple of DataFrames holding values of data (Ecell, iw, time, f, Y, Z) and parameters.
+
+    This function inputs a potential profile into the ao0 output of the
     potentiostat to set Ein, which then sets Ecell when the counter electrode is connected.
 
     At the same time potential acquisitions are made on input channels ai0 and ai1 to measure
     Ecell and iwRm.
 
     The sweep rate, initial hold time and program potential initial value and vertices should be
-    defined in Code Block 1 prior to running this function.
+    defined set_potential_profile() and passed into this function.
 
     Returns:
         total_data_WE = cell potential during program potential (ai0)
@@ -532,8 +536,6 @@ def take_CV(pot_profile, samp_num_tot, samp_rate : int=3600):
             # callback function must return an integer
             return 5
 
-
-
         '''
         Define buffer size and callback function executed every time buffer is full. 
 
@@ -549,9 +551,20 @@ def take_CV(pot_profile, samp_num_tot, samp_rate : int=3600):
         # need an input here for some reason. Press any key to end
         input('Must press Enter to end execution of code block')
 
+        '''put everything in dataframes'''
+        data = pd.DataFrame(columns=['E', 'iw', 't'])
+        data['E'] = total_data_WE
+        data['iw'] = np.array(total_data_RM) / Rm
+        data['t'] = np.abs(np.arange(0, len(total_data_WE), 1) / samp_rate)
+
+        # Store parameters
+        params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
+                               'value': [E_DC, E_AC, low_freq, Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
+
     # return data
-    return total_data_WE, total_data_RM, np.array(total_data_RM) / Rm, np.abs(
-        np.arange(0, len(total_data_WE), 1) / samp_rate)
+    # return total_data_WE, total_data_RM, np.array(total_data_RM) / Rm, np.abs(
+    #     np.arange(0, len(total_data_WE), 1) / samp_rate)
+    return data, params
 
 
 
