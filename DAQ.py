@@ -22,7 +22,7 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     :param samp_rate: Sampling rate in Hz
     :param extra_samps: Samples to acquire before and after data used to determine Y and Z
     :param ai1_delay: Empirical delay between ai0 and ai1 acquisitions in s
-    :return: Tuple of DataFrames holding values of data (Ecell, iw, time, f, Y, Z) and parameters.
+    :return: Tuple of DataFrames holding values of data (Ecell, iw, t, f, Y, Z) and parameters.
 
     Creates and writes the program potential array into the ao0 output of the DAQ
     and then initiates its output to Ein of the pstat.
@@ -34,7 +34,7 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     data values, accounting for the delay of ai1 relative to ai0.
     '''
     # Create an empty dataframe to store data
-    df = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Z'])
+    df = pd.DataFrame(columns=['Ecell', 'iw', 't', 'f', 'Y', 'Z'])
 
     params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'freq_array', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
                            'value': [E_DC, E_AC, freq, Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
@@ -115,7 +115,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     :param samp_rate: Sampling rate in Hz
     :param extra_samps: Samples to acquire before and after data used to determine Y and Z
     :param ai1_delay: Empirical delay between ai0 and ai1 acquisitions in s
-    :return: Tuple of DataFrames holding values of data (Ecell, iw, time, f, Y, Z) and parameters.
+    :return: Tuple of DataFrames holding values of data (Ecell, iw, t, f, Y, Z) and parameters.
 
     Creates and writes the program potential array into the ao0 output of the DAQ
     and then initiates its output to Ein of the pstat.
@@ -129,7 +129,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     Creates live plots along the way.
     '''
     # Create an empty dataframe to store data
-    data = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Z'])
+    data = pd.DataFrame(columns=['Ecell', 'iw', 't', 'f', 'Y', 'Z'])
 
     # Store parameters
     params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
@@ -418,7 +418,7 @@ def calc_closest_factor(num, fac):
         fac -= 1
     return int(fac)
 
-def take_CV(pot_profile : np.ndarray, samp_num_tot : int, buffer_size : int=3600, samp_rate : int=3600) -> tuple:
+def take_CV(pot_profile : np.ndarray, samp_num_tot : int, Rm : int, buffer_size : int=3600, samp_rate : int=3600) -> tuple:
     '''
     :param pot_profile: Array of potentials returned by set_potential_profile
     :param samp_num_tot: Total number of samples returned by set_potential_profile
@@ -435,12 +435,11 @@ def take_CV(pot_profile : np.ndarray, samp_num_tot : int, buffer_size : int=3600
     The sweep rate, initial hold time and program potential initial value and vertices should be
     defined set_potential_profile() and passed into this function.
 
-    Returns:
+    Internal collection parameters:
         total_data_WE = cell potential during program potential (ai0)
         total_data_RM = iwRm during program potential (ai1)
         np.array(total_data_RM)/Rm = iwRm during the program potential
         np.abs(np.arange(0, len(total_data_WE), 1)/samp_rate) = time array during the program potential
-
     '''
 
     '''Get device name '''
@@ -552,24 +551,17 @@ def take_CV(pot_profile : np.ndarray, samp_num_tot : int, buffer_size : int=3600
         input('Must press Enter to end execution of code block')
 
         '''put everything in dataframes'''
-        data = pd.DataFrame(columns=['E', 'iw', 't'])
-        data['E'] = total_data_WE
+        data = pd.DataFrame(columns=['E_program', 'Ecell', 'iw', 't'])
+        data['E_program'] = pot_profile
+        data['Ecell'] = total_data_WE
         data['iw'] = np.array(total_data_RM) / Rm
         data['t'] = np.abs(np.arange(0, len(total_data_WE), 1) / samp_rate)
 
         # Store parameters
-        params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
-                               'value': [E_DC, E_AC, low_freq, Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
+        params = pd.DataFrame({'parameter': ['Rm', 'samp_num_total', 'buffer_size', 'samp_rate'],
+                               'value': [Rm, samp_num_tot, buffer_size, samp_rate]})
 
     # return data
     # return total_data_WE, total_data_RM, np.array(total_data_RM) / Rm, np.abs(
     #     np.arange(0, len(total_data_WE), 1) / samp_rate)
     return data, params
-
-
-
-
-
-
-
-
