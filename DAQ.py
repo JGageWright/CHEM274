@@ -101,7 +101,7 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     return df
 
 def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=100000,
-             extra_samps: int=6000, ai1_delay: float=8.5e-6) -> pd.DataFrame:
+             extra_samps: int=6000, ai1_delay: float=8.5e-6) -> tuple:
     '''
     :rtype: tuple
     :param E_DC: Constant potential to hold during perturbation in V
@@ -111,7 +111,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     :param samp_rate: Sampling rate in Hz
     :param extra_samps: Samples to acquire before and after data used to determine Y and Z
     :param ai1_delay: Empirical delay between ai0 and ai1 acquisitions in s
-    :return: DataFrame holding values of Ecell, iw, time, Y, Z for each frequency
+    :return: Tuple of DataFrames holding values of data (Ecell, iw, time, f, Y, Z) and parameters.
 
     Creates and writes the program potential array into the ao0 output of the DAQ
     and then initiates its output to Ein of the pstat.
@@ -122,19 +122,16 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     Complex Y and Z are determined from the middle num_samps
     data values, accounting for the delay of ai1 relative to ai0.
 
-    Create a live plot along the way.
+    Creates live plots along the way.
     '''
     # Create an empty dataframe to store data
-    df = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Z'])
+    data = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Z'])
 
-    '''Set up live plots'''
-    # # lists and arrays to to store data
-    # freq_list = []
-    # Yin_total = []
-    # Yout_total = []
-    # Zin_total = []
-    # Zout_total = []
-    # time = []
+    # Store parameters
+    params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
+                           'value': [E_DC, E_AC, low_freq, Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
+
+
     cc1 = (cycler(color=list('rgbcmy')) *
            cycler(linestyle=['-', '--']))
     cc2 = (cycler(color=list('rgbcmy')))
@@ -163,7 +160,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     freq = samp_rate / 16 # Always > 4 samples per period
     while freq >= low_freq:
         '''
-        For each frequency, take determine Ecell, Y, Z and append to df
+        For each frequency, take determine Ecell, Y, Z and append to data
         '''
         # Set up potential program
         num_samps = int(20 * samp_rate / freq)  # 20 periods at frequency of interest
@@ -178,6 +175,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
         # get name of first device
         dev_name = all_devices[0].name
         # print(dev_name)
+
         '''initialize potential profile and acquire data'''
         with Task() as task_o, Task() as task_i, Task():
             # add ai0 and ai1 input channel to read Ecell and iwRm
@@ -224,7 +222,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
         Z = Y**-1
 
         # Append data to dataframe
-        df.loc[len(df)] = Ecell, iw, time, freq, Y, Z
+        data.loc[len(data)] = Ecell, iw, time, freq, Y, Z
 
         '''Draw live plots'''
         # subplot 1
@@ -232,9 +230,9 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
         ax1.tick_params(axis='both', which='both', direction='in', right=True, top=True)
         ax1.tick_params(labelbottom=False)
         ax1.set_prop_cycle(cc1)
-        ax1.plot(df['f'], np.real(df['Y']),
+        ax1.plot(data['f'], np.real(data['Y']),
                  marker='.')  # , label = '$R_{ct}$=' + str(Rct0) +'$\Omega; R_{u}$=' + str(Ru) +'$\Omega$ Real')
-        ax1.plot(df['f'], -np.imag(df['Y']),
+        ax1.plot(data['f'], -np.imag(data['Y']),
                  marker='.')  # , label = '$R_{ct}$=' + str(Rct0) +'$\Omega; R_{u}$=' + str(Ru) +'$\Omega$ Imaginary')
         ax1.set_ylabel('Admittance / S')
         ax1.set_xscale('log')
@@ -246,8 +244,8 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
         # subplot 2
         ax2.tick_params(axis='both', which='both', direction='in', right=True, top=True)
         ax2.set_prop_cycle(cc1)
-        ax2.plot(df['f'], np.real(df['Z']), marker='.')
-        ax2.plot(df['f'], -np.imag(df['Z']), marker='.')
+        ax2.plot(data['f'], np.real(data['Z']), marker='.')
+        ax2.plot(data['f'], -np.imag(data['Z']), marker='.')
         ax2.set_ylabel('Impedance / $\Omega$')
         ax2.set_xlabel('Periodic Frequency / Hz')
         ax2.set_xscale('log')
@@ -297,15 +295,15 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
         ax5.set_title('Nyquist Plot')
         ax5.tick_params(axis='both', which='both', direction='in', right=True, top=True)
         ax5.set_prop_cycle(cc2)
-        ax5.plot(np.real(df['Z']), -np.imag(df['Z']), marker='.')
+        ax5.plot(np.real(data['Z']), -np.imag(data['Z']), marker='.')
         ax5.set_ylabel('$-Z_{Im}$ / $\Omega$')
         ax5.set_xlabel('$Z_{Re}$ / $\Omega$')
         ax5.set_aspect('equal', 'box')
 
-        if (max(np.real(df['Z'])) >= max(-np.imag(df['Z']))):
-            axes_max = max(np.real(df['Z']))
+        if (max(np.real(data['Z'])) >= max(-np.imag(data['Z']))):
+            axes_max = max(np.real(data['Z']))
         else:
-            axes_max = max(-np.imag(df['Z']))
+            axes_max = max(-np.imag(data['Z']))
         ax5.set_xlim([0, axes_max])
         ax5.set_ylim([0, axes_max])
         ax5.ticklabel_format(axis='y', style='sci', scilimits=(-2, 3))
@@ -321,7 +319,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
         # Update the frequency and continue the loop
         freq = freq / 2  # Separating frequencies by factors of 2 gives a bit more than 3 values per decade
 
-    return df
+    return data, params
 
 '''CV and helper functions'''
 def set_potential_profile(f_start_pot : float, f_end_pot : float, samp_rate : int,

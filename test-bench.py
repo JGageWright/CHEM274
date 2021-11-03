@@ -6,10 +6,12 @@ import numpy as np
 import pandas as pd
 
 def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: int,
-             extra_samps: int=6000, ai1_delay: float=8.5e-6) -> pd.DataFrame:
+             extra_samps: int=6000, ai1_delay: float=8.5e-6) -> tuple:
 
     # Create an empty dataframe to store data
     df = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Z'])
+    params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
+                           'value': [E_DC, E_AC, freq[0], Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
     for loop_frequency in freq:
         '''
         For each frequency in the array freq, take determine Ecell, Y, Z and append to df
@@ -47,8 +49,10 @@ def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: i
         Z = Y**-1
 
         df.loc[len(df)] = Ecell, iw, time, loop_frequency, Y, Z
-    return df
+    return df, params
 
-df = fake_EIS(1,1,np.array([10,100,1000]), 1000, 100000)
-print(df, np.real(df['Y']))
+df, params = fake_EIS(1,1,np.array([10,100,1000]), 1000, 100000)
+print(df, params)
+
+
 
