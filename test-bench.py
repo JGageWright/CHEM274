@@ -50,4 +50,5 @@ def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: i
     return df
 
 df = fake_EIS(1,1,np.array([10,100,1000]), 1000, 100000)
-print(df)
+print(df, np.real(df['Y']))
+
