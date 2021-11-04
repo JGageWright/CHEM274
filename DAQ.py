@@ -362,7 +362,7 @@ def set_potential_profile(f_start_pot : float, f_end_pot : float, samp_rate : in
     :param scan_rate: Scan rate in V/s
     :param h_time: Hold time before forward sweep in s
     :param buffer_size: Samples stored in buffer before callback
-    :return: Tuple of (Potential profile array, Total number of samples)
+    :return: Tuple of (Potential profile array, Total number of samples, Scan Rate)
 
     Returns the potential profile for linear sweeps from f_start_pot to f_end_pot and back.
     Initializes the profile on the DAQ, which sets it to begin holding at f_start_pot.
@@ -431,7 +431,7 @@ def set_potential_profile(f_start_pot : float, f_end_pot : float, samp_rate : in
         task_o.write(f_start_pot)
         task_o.start()
 
-    return pot_profile, samp_num_tot
+    return pot_profile, samp_num_tot, scan_rate
 
 def calc_closest_factor(num, fac) -> int:
     '''
@@ -445,10 +445,11 @@ def calc_closest_factor(num, fac) -> int:
         fac -= 1
     return int(fac)
 
-def take_CV(pot_profile : np.ndarray, samp_num_tot : int, Rm : int, buffer_size : int=3600, samp_rate : int=3600) -> tuple:
+def take_CV(pot_profile : np.ndarray, samp_num_tot : int, scan_rate : float, Rm : int, buffer_size : int=3600, samp_rate : int=3600) -> tuple:
     '''
     :param pot_profile: Array of potentials returned by set_potential_profile
     :param samp_num_tot: Total number of samples returned by set_potential_profile
+    :param scan_rate: Scan rate in V/s
     :param buffer_size: Samples stored in buffer before callback
     :param samp_rate: Sampling rate in samples/s; Use an integral multiple of 120/s and at least 3600 per volt
     :return: Tuple of DataFrames holding values of data (Ecell, iw, time, f, Y, Z) and parameters.
@@ -585,8 +586,8 @@ def take_CV(pot_profile : np.ndarray, samp_num_tot : int, Rm : int, buffer_size 
         data['t'] = np.abs(np.arange(0, len(total_data_WE), 1) / samp_rate)
 
         # Store parameters
-        params = pd.DataFrame({'parameter': ['Rm', 'samp_num_total', 'buffer_size', 'samp_rate'],
-                               'value': [Rm, samp_num_tot, buffer_size, samp_rate]})
+        params = pd.DataFrame({'parameter': ['scan_rate', 'Rm', 'samp_num_total', 'buffer_size', 'samp_rate'],
+                               'value': [scan_rate, Rm, samp_num_tot, buffer_size, samp_rate]})
 
     # return data
     # return total_data_WE, total_data_RM, np.array(total_data_RM) / Rm, np.abs(
