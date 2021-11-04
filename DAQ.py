@@ -22,7 +22,8 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     :param samp_rate: Sampling rate in Hz
     :param extra_samps: Samples to acquire before and after data used to determine Y and Z
     :param ai1_delay: Empirical delay between ai0 and ai1 acquisitions in s
-    :return: Tuple of DataFrames holding values of data (Ecell, iw, t, f, Y, Z) and parameters.
+    :return: Tuple of DataFrames holding values of data (f, Yre, Yim, Zre, Zim) and parameters,
+     as well as list of dataframes holding raw data for each frequency.
 
     Creates and writes the program potential array into the ao0 output of the DAQ
     and then initiates its output to Ein of the pstat.
@@ -34,11 +35,11 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     data values, accounting for the delay of ai1 relative to ai0.
     '''
     # Create an empty dataframe to store data
-    data = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Yre', 'Yim', 'Z', 'Zre', 'Zim'])
+    data = pd.DataFrame(columns=['f', 'Yre', 'Yim', 'Zre', 'Zim'])
 
     params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'freq_array', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
                            'value': [E_DC, E_AC, freq, Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
-
+    opt = []  # hold raw Ecell, iw, t as optional dataframes
     for loop_frequency in freq:
         '''
         For each frequency in the array freq, take determine Ecell, Y, Z and append to df
@@ -108,8 +109,13 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
         Zim = np.imag(Z)
 
         # Append data to dataframe
-        data.loc[len(data)] = Ecell, iw, time, loop_frequency, Y, Yre, Yim, Z, Zre, Zim
-    return data, params
+        data.loc[len(data)] = freq, Yre, Yim, Zre, Zim
+        raw = pd.DataFrame({'Ecell_mag': Ecell_mag, 'Ecell_phi': Ecell_phi,
+                            'Ecell_re': Ecell_in, 'Ecell_im': Ecell_out,
+                            'iw_re': iw_in, 'iw_im': iw_out,
+                            't': time}, index=np.arange(time.size))
+        opt.append(raw)
+    return data, params, opt
 
 
 def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=100000,
@@ -123,7 +129,8 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     :param samp_rate: Sampling rate in Hz
     :param extra_samps: Samples to acquire before and after data used to determine Y and Z
     :param ai1_delay: Empirical delay between ai0 and ai1 acquisitions in s
-    :return: Tuple of DataFrames holding values of data (Ecell, iw, t, f, Y, Yre, Yim Z, Zre, Zim) and parameters.
+    :return: Tuple of DataFrames holding values of data (f, Yre, Yim, Zre, Zim) and parameters,
+     as well as list of dataframes holding raw data for each frequency.
 
     Creates and writes the program potential array into the ao0 output of the DAQ
     and then initiates its output to Ein of the pstat.
@@ -137,13 +144,14 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     Creates live plots along the way.
     '''
     # Create an empty dataframe to store data
-    data = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Yre', 'Yim', 'Z', 'Zre', 'Zim'])
+    data = pd.DataFrame(columns=['f', 'Yre', 'Yim', 'Zre', 'Zim'])
 
     # Store parameters
     params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
                            'value': [E_DC, E_AC, low_freq, Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
+    opt = []  # hold raw Ecell, iw, t as optional dataframes
 
-
+    # Set up live plots
     cc1 = (cycler(color=list('rgbcmy')) *
            cycler(linestyle=['-', '--']))
     cc2 = (cycler(color=list('rgbcmy')))
@@ -240,9 +248,15 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
         Zim = np.imag(Z)
 
         # Append data to dataframe
-        data.loc[len(data)] = Ecell, iw, time, freq, Y, Yre, Yim, Z, Zre, Zim
+        data.loc[len(data)] = freq, Yre, Yim, Zre, Zim
+        raw = pd.DataFrame({'Ecell_mag': Ecell_mag, 'Ecell_phi': Ecell_phi,
+                            'Ecell_re': Ecell_in, 'Ecell_im': Ecell_out,
+                            'iw_re': iw_in, 'iw_im': iw_out,
+                            't': time}, index=np.arange(time.size))
 
-        '''Draw live plots'''
+        opt.append(raw)
+
+        '''Update live plots'''
         # subplot 1
         ax1.set_title('Electrochemical Impedance Spectra')
         ax1.tick_params(axis='both', which='both', direction='in', right=True, top=True)
@@ -336,8 +350,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
 
         # Update the frequency and continue the loop
         freq = freq / 2  # Separating frequencies by factors of 2 gives a bit more than 3 values per decade
-
-    return data, params
+    return data, params, opt
 
 '''CV and helper functions'''
 def set_potential_profile(f_start_pot : float, f_end_pot : float, samp_rate : int,

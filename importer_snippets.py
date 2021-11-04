@@ -1,6 +1,7 @@
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
+from data_structures import experiment
 
 Tk = tk.Tk()
 Tk.withdraw()
@@ -33,6 +34,32 @@ def cary630(filename):
                        names=['Wavenumber', 'Absorbance'])
     return df
 
+def load_experiment() -> experiment:
+    '''
+    :return: experiment object
+
+    Creates and experiment object for a previously exported experiment.
+    Takes only .xlsx files, which must have sheets named 'data' and 'params'
+    CSV does not support files with multiples sheets.
+    '''
+    file = filedialog.askopenfilename(filetypes=[('Excel Worksheet', '.xlsx')])
+    x = pd.ExcelFile(file)
+    sheets = {}
+    for sheet in x.sheet_names:
+        df = pd.read_excel(file, sheet_name=sheet, index_col=0)
+        sheets[str(sheet)] = df
+
+    data = sheets['data']
+    del sheets['data']
+    params = sheets['params']
+    del sheets['params']
+
+    opt = []
+    for sheet in sheets.keys():
+        opt.append(sheets[sheet])
+
+    exp = experiment(data, params, opt)
+    return exp
 
 # Testing df
 # df = pd.DataFrame({
