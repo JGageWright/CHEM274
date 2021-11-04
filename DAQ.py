@@ -22,7 +22,7 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     :param samp_rate: Sampling rate in Hz
     :param extra_samps: Samples to acquire before and after data used to determine Y and Z
     :param ai1_delay: Empirical delay between ai0 and ai1 acquisitions in s
-    :return: Tuple of DataFrames holding values of data (Ecell, iw, t, f, Y, Z) and parameters.
+    :return: Tuple of DataFrames holding values of data (Ecell, iw, t, f, Y, Yre, Yim Z, Zre, Zim) and parameters.
 
     Creates and writes the program potential array into the ao0 output of the DAQ
     and then initiates its output to Ein of the pstat.
@@ -129,7 +129,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     Creates live plots along the way.
     '''
     # Create an empty dataframe to store data
-    data = pd.DataFrame(columns=['Ecell', 'iw', 't', 'f', 'Y', 'Z'])
+    data = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Yre', 'Yim', 'Z', 'Zre', 'Zim'])
 
     # Store parameters
     params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
@@ -221,12 +221,18 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
         iw_in = np.dot(iw, np.sin(2 * np.pi * freq * (time + ai1_delay) + Ecell_phi)) / (num_samps/2)
         iw_out = np.dot(iw, np.cos(2 * np.pi * freq * (time + ai1_delay) + Ecell_phi)) / (num_samps/2)
 
-        # Y and Z (note Zout = -Im(Z) in complex impedance analysis)
-        Y = iw_in / Ecell_mag + 1j*iw_out / Ecell_mag
-        Z = Y**-1
+        # Admittance
+        Y = iw_in / Ecell_mag + 1j * iw_out / Ecell_mag
+        Yre = np.real(Y)
+        Yim = np.imag(Y)
+
+        # Impedance (note Zout = -Im(Z) in complex impedance analysis)
+        Z = Y ** -1
+        Zre = np.real(Z)
+        Zim = np.imag(Z)
 
         # Append data to dataframe
-        data.loc[len(data)] = Ecell, iw, time, freq, Y, Z
+        data.loc[len(data)] = Ecell, iw, time, freq, Y, Yre, Yim, Z, Zre, Zim
 
         '''Draw live plots'''
         # subplot 1
