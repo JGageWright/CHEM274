@@ -10,7 +10,7 @@ def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: i
              extra_samps: int=6000, ai1_delay: float=8.5e-6) -> tuple:
 
     # Create an empty dataframe to store data
-    df = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Z'])
+    df = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Yre', 'Yim', 'Z', 'Zre', 'Zim'])
     params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
                            'value': [E_DC, E_AC, freq[0], Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
     for loop_frequency in freq:
@@ -45,15 +45,19 @@ def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: i
 
         # Admittance
         Y = iw_in / Ecell_mag + 1j*iw_out / Ecell_mag
-
+        Yre = np.real(Y)
+        Yim = np.imag(Y)
         # Impedance (note Zout = -Im(Z) in complex impedance analysis)
         Z = Y**-1
+        Zre = np.real(Z)
+        Zim = np.imag(Z)
 
-        df.loc[len(df)] = Ecell, iw, time, loop_frequency, Y, Z
+        df.loc[len(df)] = Ecell, iw, time, freq, Y, Yre, Yim, Z, Zre, Zim
     return df, params
 
 df, params = fake_EIS(1,1,np.array([10,100,1000]), 1000, 100000)
 print(df, params)
 
 exp = experiment(df, params)
+exp.to_excel()
 
