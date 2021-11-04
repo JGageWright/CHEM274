@@ -14,7 +14,7 @@ def df_to_excel(df, sheet_name='Sheet1'):
     Uses pandas to always return a .xlsx file of the given df
     Giving the save name a file extension results in multiple files being saved
     '''
-    where = filedialog.asksaveasfile(mode='w', filetypes=[('Microsoft Excel Worksheet', '.xlsx')],
+    where = filedialog.asksaveasfile(mode='wb', filetypes=[('Microsoft Excel Worksheet', '.xlsx')],
                                      defaultextension='.xlsx')
     save_name = where.name
     if save_name[-5:] != '.xlsx':

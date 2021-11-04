@@ -4,6 +4,7 @@ File for testing code
 
 import numpy as np
 import pandas as pd
+from data_structures import experiment
 
 def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: int,
              extra_samps: int=6000, ai1_delay: float=8.5e-6) -> tuple:
@@ -54,5 +55,5 @@ def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: i
 df, params = fake_EIS(1,1,np.array([10,100,1000]), 1000, 100000)
 print(df, params)
 
-
+exp = experiment(df, params)
 
