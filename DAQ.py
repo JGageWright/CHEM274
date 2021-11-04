@@ -371,7 +371,7 @@ def set_potential_profile(f_start_pot : float, f_end_pot : float, samp_rate : in
     return_profile = np.linspace(r_start_pot, r_end_pot, int(samp_rate*r_time))
 
     # potential profile is simply the individual potential profiles of each sections combined
-    pot_profile = np.concatenate((h_profile, f_profile, r_profile, return_profile))
+    pot_profile = np.concatenate((h_profile, f_profile, r_profile))
 
     '''Add extra samples to round out pot_profile nicely. 
     buffer_size has been changed to an optional argument'''
