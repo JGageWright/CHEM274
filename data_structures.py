@@ -49,8 +49,9 @@ class experiment:
         with pd.ExcelWriter(self.filepath) as writer:
             self.data.to_excel(writer, engine='openpyxl', sheet_name='data')
             self.params.to_excel(writer, engine='openpyxl', sheet_name='params')
-            for i in range(len(self.opt)):
-                self.opt[i].to_excel(writer, engine='openpyxl', sheet_name='opt'+str(i))
+            if self.opt != None:
+                for i in range(len(self.opt)):
+                    self.opt[i].to_excel(writer, engine='openpyxl', sheet_name='opt'+str(i))
 
     def to_csv(self):
         self.filepath = filedialog.asksaveasfile(mode='wb', filetypes=[('CSV', '.csv')],
