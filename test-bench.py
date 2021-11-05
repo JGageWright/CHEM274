@@ -4,15 +4,17 @@ File for testing code
 
 import numpy as np
 import pandas as pd
+from CHEM274.importer_snippets import load_experiment
 from data_structures import experiment
 
 def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: int,
              extra_samps: int=6000, ai1_delay: float=8.5e-6) -> tuple:
 
     # Create an empty dataframe to store data
-    df = pd.DataFrame(columns=['E', 'iw', 't', 'f', 'Y', 'Yre', 'Yim', 'Z', 'Zre', 'Zim'])
+    df = pd.DataFrame(columns=['f', 'Yre', 'Yim', 'Zre', 'Zim'])
     params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
                            'value': [E_DC, E_AC, freq[0], Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
+    opt = [] # hold raw Ecell, iw, t as optional dataframes
     for loop_frequency in freq:
         '''
         For each frequency in the array freq, take determine Ecell, Y, Z and append to df
@@ -26,9 +28,9 @@ def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: i
 
 
             # create and trim Ecell, iwRm, iw and time arrays
-        Ecell = 1  # keep only the middle num_samps worth of Ecell
-        iw = 1
-        time = 1  # keep only the middle nums amps worth of data
+        Ecell = np.arange(4)  # keep only the middle num_samps worth of Ecell
+        iw = np.arange(4)
+        time = np.arange(4)  # keep only the middle nums amps worth of data
 
         '''Calculate Admittance'''
         # Ecell inner products with sine and cosine bases
@@ -52,12 +54,23 @@ def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: i
         Zre = np.real(Z)
         Zim = np.imag(Z)
 
-        df.loc[len(df)] = Ecell, iw, time, freq, Y, Yre, Yim, Z, Zre, Zim
-    return df, params
+        df.loc[len(df)] = freq, Yre, Yim, Zre, Zim
+        # raw = pd.DataFrame([Ecell_mag, Ecell_phi, Ecell_in, Ecell_out, iw_in, iw_out, time],
+        #                    columns=['Ecell_mag', 'Ecell_phi', 'Ecell_re', 'Ecell_im', 'iw_re', 'iw_im', 't'])
 
-df, params = fake_EIS(1,1,np.array([10,100,1000]), 1000, 100000)
-print(df, params)
+        raw = pd.DataFrame({'Ecell_mag': Ecell_mag, 'Ecell_phi': Ecell_phi,
+                            'Ecell_re': Ecell_in, 'Ecell_im': Ecell_out,
+                            'iw_re': iw_in, 'iw_im': iw_out,
+                            't': time}, index=np.arange(time.size))
 
-exp = experiment(df, params)
-exp.to_excel()
+        opt.append(raw)
+    return df, params, opt
 
+# df, params, opt = fake_EIS(1,1,np.array([10,100,1000]), 1000, 100000)
+# exp = experiment(df, params, opt)
+
+cv = load_experiment()
+print(cv.params)
+# print(cv.params.loc[cv.params['parameter']=='scan_rate', 'value'])
+
+print(cv.params.iloc[0, 1])
