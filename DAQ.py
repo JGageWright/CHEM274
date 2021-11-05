@@ -11,14 +11,15 @@ from matplotlib.lines import Line2D
 from cycler import cycler
 
 '''EIS functions'''
-def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: int=100000,
+def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, Cm:float, samp_rate: int=100000,
              extra_samps: int=6000, ai1_delay: float=8.5e-6) -> tuple:
     '''
     :rtype: tuple
     :param E_DC: Constant potential to hold during perturbation in V
     :param E_AC: Magnitude of the perturbation potential in V
     :param freq: Array of perturbation potential frequencies in Hz
-    :param Rm: Resistance of the measurement resistor in Ω
+    :param Rm: Measurement resistance in Ω
+    :param Cm: Measurement capacitance in F
     :param samp_rate: Sampling rate in Hz
     :param extra_samps: Samples to acquire before and after data used to determine Y and Z
     :param ai1_delay: Empirical delay between ai0 and ai1 acquisitions in s
@@ -37,8 +38,8 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     # Create an empty dataframe to store data
     data = pd.DataFrame(columns=['f', 'Yre', 'Yim', 'Zre', 'Zim'])
 
-    params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'freq_array', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
-                           'value': [E_DC, E_AC, freq, Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
+    params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'freq_array', 'Rm', 'Cm', 'samp_rate', 'extra_samps', 'ai1_delay'],
+                           'value': [E_DC, E_AC, freq, Rm, Cm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
     opt = []  # hold raw Ecell, iw, t as optional dataframes
     for loop_frequency in freq:
         '''
@@ -118,14 +119,15 @@ def take_EIS_custom_array(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float,
     return data, params, opt
 
 
-def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=100000,
+def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, Cm: float, samp_rate: int=100000,
              extra_samps: int=6000, ai1_delay: float=8.5e-6) -> tuple:
     '''
     :rtype: tuple
     :param E_DC: Constant potential to hold during perturbation in V
     :param E_AC: Magnitude of the perturbation potential in V
     :param low_freq: Lowest perturbation potential frequency in Hz. The highest possible is always measured.
-    :param Rm: Resistance of the measurement resistor in Ω
+    :param Rm: Measurement resistance in Ω
+    :param Cm: Measurement capacitance in F
     :param samp_rate: Sampling rate in Hz
     :param extra_samps: Samples to acquire before and after data used to determine Y and Z
     :param ai1_delay: Empirical delay between ai0 and ai1 acquisitions in s
@@ -147,8 +149,8 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     data = pd.DataFrame(columns=['f', 'Yre', 'Yim', 'Zre', 'Zim'])
 
     # Store parameters
-    params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'samp_rate', 'extra_samps', 'ai1_delay'],
-                           'value': [E_DC, E_AC, low_freq, Rm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
+    params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'Cm', 'samp_rate', 'extra_samps', 'ai1_delay'],
+                           'value': [E_DC, E_AC, low_freq, Rm, Cm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
     opt = []  # hold raw Ecell, iw, t as optional dataframes
 
     # Set up live plots
@@ -353,8 +355,8 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, samp_rate: int=
     return data, params, opt
 
 '''CV and helper functions'''
-def set_potential_profile(f_start_pot : float, f_end_pot : float, samp_rate : int,
-                          scan_rate : float, h_time : float, buffer_size : int=3600) -> tuple:
+def set_potential_profile(f_start_pot: float, f_end_pot: float, samp_rate: int,
+                          scan_rate: float, h_time: float, buffer_size: int=3600) -> tuple:
     '''
     :param f_start_pot: Initial potential in V
     :param f_end_pot: Vertex potential in V
@@ -445,11 +447,13 @@ def calc_closest_factor(num, fac) -> int:
         fac -= 1
     return int(fac)
 
-def take_CV(pot_profile : np.ndarray, samp_num_tot : int, scan_rate : float, Rm : int, buffer_size : int=3600, samp_rate : int=3600) -> tuple:
+def take_CV(pot_profile: np.ndarray, samp_num_tot: int, scan_rate: float, Rm: float, Cm: float, buffer_size: int=3600, samp_rate: int=3600) -> tuple:
     '''
     :param pot_profile: Array of potentials returned by set_potential_profile
     :param samp_num_tot: Total number of samples returned by set_potential_profile
     :param scan_rate: Scan rate in V/s
+    :param Rm: Measurement resistance in Ω
+    :param Cm: Measurement capacitance in F
     :param buffer_size: Samples stored in buffer before callback
     :param samp_rate: Sampling rate in samples/s; Use an integral multiple of 120/s and at least 3600 per volt
     :return: Tuple of DataFrames holding values of data (Ecell, iw, time, f, Y, Z) and parameters.
@@ -586,8 +590,8 @@ def take_CV(pot_profile : np.ndarray, samp_num_tot : int, scan_rate : float, Rm 
         data['t'] = np.abs(np.arange(0, len(total_data_WE), 1) / samp_rate)
 
         # Store parameters
-        params = pd.DataFrame({'parameter': ['scan_rate', 'Rm', 'samp_num_total', 'buffer_size', 'samp_rate'],
-                               'value': [scan_rate, Rm, samp_num_tot, buffer_size, samp_rate]})
+        params = pd.DataFrame({'parameter': ['scan_rate', 'Rm', 'Cm', 'samp_num_total', 'buffer_size', 'samp_rate'],
+                               'value': [scan_rate, Rm, Cm, samp_num_tot, buffer_size, samp_rate]})
 
     # return data
     # return total_data_WE, total_data_RM, np.array(total_data_RM) / Rm, np.abs(
