@@ -43,7 +43,7 @@ def load_experiment() -> experiment:
     CSV does not support files with multiples sheets.
     '''
     file = filedialog.askopenfilename(filetypes=[('Excel Worksheet', '.xlsx')])
-    x = pd.ExcelFile(file)
+    x = pd.ExcelFile(file, engine='openpyxl')
     sheets = {}
     for sheet in x.sheet_names:
         df = pd.read_excel(file, sheet_name=sheet, index_col=0)

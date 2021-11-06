@@ -23,11 +23,6 @@ class experiment:
         self.params.name = 'params'
         self.filepath = None
         self.opt = opt
-        # Rename opt dataframes
-        # for df in self.opt():
-        #     i = 0
-        #     df.name = 'opt' + str(i)
-        #     i += 1
 
     def data(self):
         return self.data

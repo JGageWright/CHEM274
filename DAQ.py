@@ -264,9 +264,9 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, Cm: float, samp
         ax1.tick_params(axis='both', which='both', direction='in', right=True, top=True)
         ax1.tick_params(labelbottom=False)
         ax1.set_prop_cycle(cc1)
-        ax1.plot(data['f'], np.real(data['Y']),
+        ax1.plot(data['f'], data['Yre'],
                  marker='.')  # , label = '$R_{ct}$=' + str(Rct0) +'$\Omega; R_{u}$=' + str(Ru) +'$\Omega$ Real')
-        ax1.plot(data['f'], -np.imag(data['Y']),
+        ax1.plot(data['f'], -data['Yim'],
                  marker='.')  # , label = '$R_{ct}$=' + str(Rct0) +'$\Omega; R_{u}$=' + str(Ru) +'$\Omega$ Imaginary')
         ax1.set_ylabel('Admittance / S')
         ax1.set_xscale('log')
@@ -278,8 +278,8 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, Cm: float, samp
         # subplot 2
         ax2.tick_params(axis='both', which='both', direction='in', right=True, top=True)
         ax2.set_prop_cycle(cc1)
-        ax2.plot(data['f'], np.real(data['Z']), marker='.')
-        ax2.plot(data['f'], -np.imag(data['Z']), marker='.')
+        ax2.plot(data['f'], data['Zre'], marker='.')
+        ax2.plot(data['f'], -data['Zim'], marker='.')
         ax2.set_ylabel('Impedance / $\Omega$')
         ax2.set_xlabel('Periodic Frequency / Hz')
         ax2.set_xscale('log')
@@ -329,15 +329,15 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, Cm: float, samp
         ax5.set_title('Nyquist Plot')
         ax5.tick_params(axis='both', which='both', direction='in', right=True, top=True)
         ax5.set_prop_cycle(cc2)
-        ax5.plot(np.real(data['Z']), -np.imag(data['Z']), marker='.')
+        ax5.plot(data['Zre'], -data['Zim'], marker='.')
         ax5.set_ylabel('$-Z_{Im}$ / $\Omega$')
         ax5.set_xlabel('$Z_{Re}$ / $\Omega$')
         ax5.set_aspect('equal', 'box')
 
-        if (max(np.real(data['Z'])) >= max(-np.imag(data['Z']))):
-            axes_max = max(np.real(data['Z']))
+        if (max(data['Zre']) >= max(-data['Zim'])):
+            axes_max = max(data['Zre'])
         else:
-            axes_max = max(-np.imag(data['Z']))
+            axes_max = max(-data['Zim'])
         ax5.set_xlim([0, axes_max])
         ax5.set_ylim([0, axes_max])
         ax5.ticklabel_format(axis='y', style='sci', scilimits=(-2, 3))
