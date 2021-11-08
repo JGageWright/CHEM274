@@ -66,11 +66,12 @@ def fake_EIS(E_DC: float, E_AC: float, freq: np.ndarray, Rm: float, samp_rate: i
         opt.append(raw)
     return df, params, opt
 
-# df, params, opt = fake_EIS(1,1,np.array([10,100,1000]), 1000, 100000)
-# exp = experiment(df, params, opt)
+df, params, opt = fake_EIS(1,1,np.array([10,100,1000]), 1000, 100000)
+exp = experiment(df, params, opt)
+exp.to_excel()
 
-cv = load_experiment()
-print(cv.params)
-# print(cv.params.loc[cv.params['parameter']=='scan_rate', 'value'])
-
-print(cv.params.iloc[0, 1])
+# cv = load_experiment()
+# print(cv.params)
+# # print(cv.params.loc[cv.params['parameter']=='scan_rate', 'value'])
+#
+# print(cv.params.iloc[0, 1])

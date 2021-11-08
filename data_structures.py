@@ -36,8 +36,8 @@ class experiment:
     def to_excel(self):
         self.filepath = filedialog.asksaveasfile(mode='wb', filetypes=[('Excel Worksheet', '.xlsx')],
                                                      defaultextension='.xlsx')
-        self.filepath = self.filepath.name
-
+        with self.filepath as f:
+            self.filepath = f.name
         if self.filepath[-5:] != '.xlsx':
             self.filepath = str(self.filepath + '.xlsx')
 
@@ -51,8 +51,8 @@ class experiment:
     def to_csv(self):
         self.filepath = filedialog.asksaveasfile(mode='wb', filetypes=[('CSV', '.csv')],
                                                      defaultextension='.csv')
-        self.filepath = self.filepath.name
-
+        with self.filepath as f:
+            self.filepath = f.name
         if self.filepath[-4:] != '.csv':
             self.filepath = str(self.filepath + '.csv')
         self.data.to_csv(self.filepath)

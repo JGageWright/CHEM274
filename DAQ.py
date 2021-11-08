@@ -150,7 +150,7 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, Cm: float, samp
 
     # Store parameters
     params = pd.DataFrame({'parameter': ['E_DC', 'E_AC', 'low_freq', 'Rm', 'Cm', 'samp_rate', 'extra_samps', 'ai1_delay'],
-                           'value': [E_DC, E_AC, low_freq, Rm, Cm, samp_rate, extra_samps, "{:e}".format(ai1_delay)]})
+                           'value': [E_DC, E_AC, low_freq, Rm, Cm, samp_rate, extra_samps, ai1_delay]})
     opt = []  # hold raw Ecell, iw, t as optional dataframes
 
     # Set up live plots
