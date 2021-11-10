@@ -1,0 +1,8 @@
+,parameter,value
+0,E_DC,1
+1,E_AC,1
+2,low_freq,10
+3,Rm,1000
+4,samp_rate,100000
+5,extra_samps,6000
+6,ai1_delay,8.500000e-06

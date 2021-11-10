@@ -2,6 +2,7 @@ import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
 from data_structures import experiment
+import os
 
 Tk = tk.Tk()
 Tk.withdraw()
@@ -34,32 +35,53 @@ def cary630(filename):
                        names=['Wavenumber', 'Absorbance'])
     return df
 
-def load_experiment() -> experiment:
+def load_experiment(filetype: str = '.csv') -> experiment:
     '''
+    :param filetype: .xlsx or .csv
     :return: experiment object
 
     Creates and experiment object for a previously exported experiment.
-    Takes only .xlsx files, which must have sheets named 'data' and 'params'
-    CSV does not support files with multiples sheets.
+    If filetype = .xlsx, the excel file must have sheets named 'data' and 'params'
+
+    If filetype = .csv, two CSVs in the selected folder must be named 'data' and 'params'
     '''
-    file = filedialog.askopenfilename(filetypes=[('Excel Worksheet', '.xlsx')])
-    x = pd.ExcelFile(file, engine='openpyxl')
-    sheets = {}
-    for sheet in x.sheet_names:
-        df = pd.read_excel(file, sheet_name=sheet, index_col=0)
-        sheets[str(sheet)] = df
+    if filetype == '.xlsx':
+        file = filedialog.askopenfilename(filetypes=[('Excel Worksheet', '.xlsx')])
+        x = pd.ExcelFile(file, engine='openpyxl')
+        sheets = {}
+        for sheet in x.sheet_names:
+            df = pd.read_excel(file, sheet_name=sheet, index_col=0)
+            sheets[str(sheet)] = df
 
-    data = sheets['data']
-    del sheets['data']
-    params = sheets['params']
-    del sheets['params']
+        data = sheets['data']
+        del sheets['data']
+        params = sheets['params']
+        del sheets['params']
 
-    opt = []
-    for sheet in sheets.keys():
-        opt.append(sheets[sheet])
+        opt = []
+        for sheet in sheets.keys():
+            opt.append(sheets[sheet])
 
-    exp = experiment(data, params, opt)
-    return exp
+        exp = experiment(data, params, opt)
+        return exp
+    elif filetype == '.csv':
+        dirname = filedialog.askdirectory(title='Select a folder of CSV files')
+        filenames = os.listdir(dirname)
+
+        data = pd.read_csv(dirname+'/data.csv', index_col=0)
+        params = pd.read_csv(dirname + '/params.csv', index_col=0)
+        filenames.remove('data.csv')
+        filenames.remove('params.csv')
+
+        opt = []
+        for file in filenames:
+            opt.append(
+                pd.read_csv(dirname+'/'+file, index_col=0)
+                )
+        exp = experiment(data, params, opt)
+        return exp
+
+
 
 # Testing df
 # df = pd.DataFrame({
