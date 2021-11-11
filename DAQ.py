@@ -355,8 +355,8 @@ def take_EIS(E_DC: float, E_AC: float, low_freq: int, Rm: float, Cm: float, samp
     return data, params, opt
 
 '''CV and helper functions'''
-def set_potential_profile(f_start_pot: float, f_end_pot: float, samp_rate: int,
-                          scan_rate: float, h_time: float, buffer_size: int=3600) -> tuple:
+def CV_potential_profile(f_start_pot: float, f_end_pot: float, samp_rate: int,
+                         scan_rate: float, h_time: float, buffer_size: int=3600) -> tuple:
     '''
     :param f_start_pot: Initial potential in V
     :param f_end_pot: Vertex potential in V
@@ -447,10 +447,11 @@ def calc_closest_factor(num, fac) -> int:
         fac -= 1
     return int(fac)
 
-def take_CV(pot_profile: np.ndarray, samp_num_tot: int, scan_rate: float, Rm: float, Cm: float, buffer_size: int=3600, samp_rate: int=3600) -> tuple:
+def take_CV(pot_profile: np.ndarray, samp_num_tot: int, scan_rate: float, Rm: float,
+            Cm: float, buffer_size: int = 3600, samp_rate: int = 3600) -> tuple:
     '''
-    :param pot_profile: Array of potentials returned by set_potential_profile
-    :param samp_num_tot: Total number of samples returned by set_potential_profile
+    :param pot_profile: Array of potentials returned by CV_potential_profile
+    :param samp_num_tot: Total number of samples returned by CV_potential_profile
     :param scan_rate: Scan rate in V/s
     :param Rm: Measurement resistance in Ω
     :param Cm: Measurement capacitance in F
@@ -465,7 +466,7 @@ def take_CV(pot_profile: np.ndarray, samp_num_tot: int, scan_rate: float, Rm: fl
     Ecell and iwRm.
 
     The sweep rate, initial hold time and program potential initial value and vertices should be
-    defined set_potential_profile() and passed into this function.
+    defined CV_potential_profile() and passed into this function.
 
     Internal collection parameters:
         total_data_WE = cell potential during program potential (ai0)
@@ -592,6 +593,208 @@ def take_CV(pot_profile: np.ndarray, samp_num_tot: int, scan_rate: float, Rm: fl
         # Store parameters
         params = pd.DataFrame({'parameter': ['scan_rate', 'Rm', 'Cm', 'samp_num_total', 'buffer_size', 'samp_rate'],
                                'value': [scan_rate, Rm, Cm, samp_num_tot, buffer_size, samp_rate]})
+
+    # return data
+    # return total_data_WE, total_data_RM, np.array(total_data_RM) / Rm, np.abs(
+    #     np.arange(0, len(total_data_WE), 1) / samp_rate)
+    return data, params
+
+'''CA and helper functions'''
+def CA_potential_profile(pot_init: float, pot_step: float, pot_rest: float,
+                         pot_init_time: float, pot_step_time: float, pot_rest_time: float,
+                         buffer_size: int = 1200, samp_rate: int = 3600) -> tuple:
+    """
+    :param pot_init: Initial potential in V
+    :param pot_step: Step potential in V
+    :param pot_rest: Rest potential in V
+    :param pot_init_time: Time to hold the initial potential in s
+    This will be elongated as needed to round out the total sample number.
+    :param pot_step_time: Time to hold the step potential in s
+    :param pot_rest_time: Time to hold the resting potential in s
+    :param buffer_size: Samples stored in buffer before callback
+    :param samp_rate: Sampling rate in samples/s; Use an integral multiple of 120/s and at least 3600 per volt
+    :return: pot_profile, samp_num_tot: An array holding potentials for each sample and the total sample number
+    """
+    # number of samples for each section
+    samp_num_init = samp_rate * pot_init_time
+    samp_num_step = samp_rate * pot_step_time
+    samp_num_rest = samp_rate * pot_rest_time
+
+    # create potential profile array for each section
+    pot_profile_init = pot_init * np.repeat(1, samp_num_init)
+    pot_profile_step = pot_step * np.repeat(1, samp_num_step)
+    pot_profile_rest = pot_rest * np.repeat(1, samp_num_rest)
+
+    '''Since the total sample number must be a multiple of the buffer_size, 
+    add additional samples to the initial potential step until it is.'''
+
+    # additional samples in the hold step to round off potential profile
+    additional_hold_sample = 0
+
+    # total sample size of the potential profile with extra samples as needed
+    samp_num_tot = additional_hold_sample + len(pot_profile_init) + len(pot_profile_step) + len(pot_profile_rest)
+    while samp_num_tot % buffer_size != 0:
+        additional_hold_sample += 1
+        samp_num_tot = additional_hold_sample + len(pot_profile_init) + len(pot_profile_step) + len(pot_profile_rest)
+
+    # Calculate hold profile
+    h_profile = np.linspace(pot_init, pot_init, int(additional_hold_sample))
+
+    '''Construct the potential profile by combining each individual section'''
+    pot_profile = np.concatenate((h_profile, pot_profile_init, pot_profile_step, pot_profile_rest))
+    samp_num_tot = int(len(pot_profile))  # must be an integer
+
+    '''Check potential profile to be set'''
+    plt.title('CA Program Potential', fontsize=16)
+    plt.xlabel('Time / s', fontsize=16)
+    plt.ylabel('$E_{\mathrm{in}}$ / V', fontsize=16)
+    plt.tick_params(axis='both', which='both', direction='in', right=True, top=True)
+    plt.plot(np.arange(0, len(pot_profile), 1) / samp_rate, pot_profile)
+
+    return pot_profile, samp_num_tot
+
+def take_CA(pot_profile: np.ndarray, samp_num_tot: int, Rm: float,
+            Cm: float, buffer_size: int = 3600, samp_rate: int = 3600) -> tuple:
+    '''
+    :param pot_profile: Array of potentials returned by CV_potential_profile
+    :param samp_num_tot: Total number of samples returned by CV_potential_profile
+    :param Rm: Measurement resistance in Ω
+    :param Cm: Measurement capacitance in F
+    :param buffer_size: Samples stored in buffer before callback
+    :param samp_rate: Sampling rate in samples/s; Use an integral multiple of 120/s and at least 3600 per volt
+    :return: Tuple of DataFrames holding values of data (Ecell, iw, time, f, Y, Z) and parameters.
+
+    This function inputs a potential profile into the ao0 output of the
+    potentiostat to set Ein, which then sets Ecell when the counter electrode is connected.
+
+    At the same time potential acquisitions are made on input channels ai0 and ai1 to measure
+    Ecell and iwRm.
+
+    Internal collection parameters:
+        total_data_WE = cell potential during program potential (ai0)
+        total_data_RM = iwRm during program potential (ai1)
+        np.array(total_data_RM)/Rm = iwRm during the program potential
+        np.abs(np.arange(0, len(total_data_WE), 1)/samp_rate) = time array during the program potential
+    '''
+
+    '''Get device name '''
+    # get a list of all devices connected
+    all_devices = list(nidaqmx.system.System.local().devices)
+    # get name of first device
+    dev_name = all_devices[0].name
+    # print(dev_name)
+
+    ''' add DAQ channels and define measurement parameters'''
+    with nidaqmx.Task() as task_i, nidaqmx.Task() as task_o:
+        # add ai0 & ai1 input channels for reading potentials. add ao0 output channels for setting potential
+        task_i.ai_channels.add_ai_voltage_chan(dev_name + "/ai0:1", min_val=-10.0, max_val=10.0)
+        task_o.ao_channels.add_ao_voltage_chan(dev_name + "/ao0", min_val=-10.0, max_val=10.0)
+
+        # define sampling rate and total samples acquired per channel for input & output channels
+        task_i.timing.cfg_samp_clk_timing(rate=samp_rate, samps_per_chan=samp_num_tot)
+        task_o.timing.cfg_samp_clk_timing(rate=samp_rate, samps_per_chan=samp_num_tot)
+
+        # set up a digital trigger for the output channel to set the potential.  Should be commented out for myDAQs
+        # task_o.triggers.start_trigger.cfg_dig_edge_start_trig('/'+ dev_name +'/ai/StartTrigger')
+
+        # create empty lists to populate
+        total_data_WE = []  # cell potential in V
+        total_data_RM = []  # iwRm potential in V
+
+        # define output channel task. Task will only execute when the output channel trigger is activated
+        task_o.write(pot_profile)  # , auto_start = False)
+        task_o.start()
+
+        ''' Set up plot during data acquisition'''
+        # set up a 2 x 2 grid for the plot
+        grid = plt.GridSpec(2, 1, wspace=0.3, hspace=0.2)
+        fig = plt.figure(figsize=(14, 12))
+
+        # set right edge of plot to be at 80% of fig width and bottom to be at 20% of fig height to fit everything.
+        plt.subplots_adjust(right=0.8)
+        plt.subplots_adjust(bottom=0.2)
+
+        # Define positions of 3 subplots
+        ax1 = fig.add_subplot(grid[1, 0])
+        ax2 = fig.add_subplot(grid[0, 0])
+        # ax3 = fig.add_subplot(grid[1, 1])#, sharex = ax2)
+        plt.ion()
+        fig.show()
+        fig.canvas.draw()
+
+        '''Encapsulate buffer callback function'''
+        def cont_read(task_handle, every_n_samples_event_type,
+                      number_of_samples, callback_data):
+            '''
+            Define a 'callback' function to execute when the buffer is full
+
+            When this funtion is called a subset of samples are acquired at ai0 and ai1 and then appended
+            to the lists 'total_data_WE'and 'total_data_RM'. Then the CV plot is updated with this new data.
+             '''
+
+            # Acquire subset of samples and store data in a temporary list
+            temp_samples = task_i.read(number_of_samples_per_channel=buffer_size)
+            # add acquired data to list storing all data
+            total_data_WE.extend(temp_samples[0])
+            total_data_RM.extend(temp_samples[1])
+
+            # calculate time profile (for plotting)
+            total_time_profile = np.abs(np.arange(0, len(total_data_WE), 1) / samp_rate)
+            # calculate current at Rm (for plotting)
+            Rm_current = np.array(total_data_RM) / Rm
+
+            # Return size of 'total_data' and update subplots every time buffer is full
+            # print(len(total_data_RM))
+
+            ax1.clear()
+            ax1.set_title('$i_w$ vs $E_{cell}$', fontsize=16)
+            ax1.tick_params(axis='both', which='both', direction='in', right=True, top=True)
+            ax1.set_xlabel('$E_{cell}$ / V', fontsize=16)
+            ax1.set_ylabel('$i_{w}$ / A', fontsize=16)
+            ax1.ticklabel_format(axis='y', style='sci', scilimits=(-2, 3))
+            ax1.plot(total_data_WE, Rm_current)
+
+            ax2.clear()
+            ax2.set_title('$E_{cell}$ and $i_{w}R_{m}$ vs Time', fontsize=16)
+            ax2.tick_params(axis='both', which='both', direction='in', right=True, top=True)
+            # ax2.tick_params(labelbottom=False)
+            ax2.set_xlabel('Time / s', fontsize=16)
+            ax2.set_ylabel('Potential / V', fontsize=16)
+            ax2.plot(total_time_profile, total_data_WE, label='$E_{cell}$')
+            ax2.plot(total_time_profile, total_data_RM, label='$i_{w}R_{m}$')
+            ax2.legend()
+
+            # redrew plot with new data
+            fig.canvas.draw()
+
+            # callback function must return an integer
+            return 5
+
+        '''
+        Define buffer size and callback function executed every time buffer is full. 
+
+        Note that the buffer size includes samples from all channels. E.g. if you're collecting 100 samples
+        over 5 channels then a buffer size of 100*5 = 500 will be filled once every channel acquires 100 
+        samples. 
+        '''
+        task_i.register_every_n_samples_acquired_into_buffer_event(buffer_size, cont_read)
+
+        # start task to read potential at inputs. This will trigger output to begin potenial sweep
+        task_i.start()
+
+        # need an input here for some reason. Press any key to end
+        input('Must press Enter to end execution of code block')
+
+        '''put everything in dataframes'''
+        data = pd.DataFrame(columns=['E_program', 'Ecell', 'iw', 't'])
+        data['E_program'] = pot_profile
+        data['Ecell'] = total_data_WE
+        data['iw'] = np.array(total_data_RM) / Rm
+        data['t'] = np.abs(np.arange(0, len(total_data_WE), 1) / samp_rate)
+
+        # Store parameters
+        params = pd.DataFrame({'parameter': ['Rm', 'Cm', 'samp_num_total', 'buffer_size', 'samp_rate'],
+                               'value': [Rm, Cm, samp_num_tot, buffer_size, samp_rate]})
 
     # return data
     # return total_data_WE, total_data_RM, np.array(total_data_RM) / Rm, np.abs(
