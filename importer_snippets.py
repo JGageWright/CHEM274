@@ -43,7 +43,7 @@ def load_experiment(filetype: str = '.csv') -> experiment:
     Creates and experiment object for a previously exported experiment.
     If filetype = .xlsx, the excel file must have sheets named 'data' and 'params'
 
-    If filetype = .csv, two CSVs in the selected folder must be named 'data' and 'params'
+    If filetype = .csv, two CSVs in the selected folder must be named 'data' and 'params', respecitively
     '''
     if filetype == '.xlsx':
         file = filedialog.askopenfilename(filetypes=[('Excel Worksheet', '.xlsx')])
