@@ -1,0 +1,6 @@
+,parameter,value
+0,Rm,1000.0
+1,Cm,1e-06
+2,samp_num_total,25200.0
+3,buffer_size,3600.0
+4,samp_rate,3600.0
