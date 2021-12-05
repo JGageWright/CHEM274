@@ -35,7 +35,7 @@ def cary630(filename):
                        names=['Wavenumber', 'Absorbance'])
     return df
 
-def load_experiment(filetype: str = '.csv') -> experiment:
+def load_experiment(filetype: str = '.csv', csv_dirname: str = None) -> experiment:
     '''
     :param filetype: .xlsx or .csv
     :return: experiment object
@@ -65,7 +65,10 @@ def load_experiment(filetype: str = '.csv') -> experiment:
         exp = experiment(data, params, opt)
         return exp
     elif filetype == '.csv':
-        dirname = filedialog.askdirectory(title='Select a folder of CSV files')
+        if csv_dirname is None:
+            dirname = filedialog.askdirectory(title='Select a folder of CSV files')
+        else:
+            dirname = csv_dirname
         filenames = os.listdir(dirname)
 
         data = pd.read_csv(dirname+'/data.csv', index_col=0)
