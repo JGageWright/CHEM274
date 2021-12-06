@@ -1,7 +1,7 @@
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
-from data_structures import experiment
+from CHEM274.data_structures import experiment
 import os
 
 Tk = tk.Tk()
