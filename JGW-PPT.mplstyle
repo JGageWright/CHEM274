@@ -17,7 +17,7 @@ ytick.minor.width : 1
 # Fontsizes
 xtick.labelsize : 22
 ytick.labelsize : 22
-legend.fontsize : 40
+legend.fontsize : 20
 legend.title_fontsize : 20
 axes.titlesize : 26
 axes.labelsize : 24
