@@ -1,7 +1,0 @@
-,parameter,value
-0,scan_rate,0.4
-1,Rm,1000.0
-2,Cm,1e-06
-3,samp_num_total,25200.0
-4,buffer_size,3600.0
-5,samp_rate,3600.0

@@ -33,7 +33,6 @@ axes.linewidth : 1.5
 grid.linewidth : .5
 lines.linewidth : 3
 
-
 # Use sans-serif fonts
 font.family: sans-serif
 font.sans-serif: Arial
